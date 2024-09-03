@@ -4,13 +4,14 @@
       <div class="q-mb-xl">
         <q-input v-model="tempData.name" label="姓名" />
         <q-input v-model="tempData.age" label="年齡" />
+        <q-input v-model="searchItem" label="查詢" />
         <!-- 根據狀態切換按鈕顯示 -->
         <q-btn color="primary" class="q-mt-md" @click="addText">
-          {{ editing ? '修改' : '新增' }}
+          {{ editing ? '更新' : '新增' }}
         </q-btn>
       </div>
 
-      <q-table flat bordered ref="tableRef" :rows="blockData" :columns="(tableConfig as QTableProps['columns'])"
+      <q-table flat bordered ref="tableRef" :rows="filterBlockData" :columns="(tableConfig as QTableProps['columns'])"
         row-key="id" hide-pagination separator="cell" :rows-per-page-options="[0]">
         <template v-slot:header="props">
           <q-tr :props="props">
@@ -52,7 +53,7 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { QTableProps } from 'quasar';
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 
 interface btnType {
   label: string;
@@ -102,10 +103,26 @@ const tempData = ref({
 
 const editing = ref(false); // 狀態模式
 const editIndex = ref(-1);    // 當前編輯索引值
+const searchItem = ref('')  //新增查詢
+
+//撈取API
+const fetchData = async () => {
+  try {
+    const response = await axios.get('https://dahua.metcfire.com.tw/api/CRUDTest/a');
+    blockData.value = response.data;
+  } catch (error) {
+    console.log('錯誤', error);
+
+  }
+}
+//掛載執行
+onMounted(() => {
+  fetchData();
+})
 
 // 新增或修改
 const addText = () => {
-  if (tempData.value.name !== '' && tempData.value.age !== '') {
+  if (tempData.value.name !== '' && tempData.value.age !== '' && Number(tempData.value.age) && Number(tempData.value.age) > 0) {
     if (editing.value && editIndex.value !== -1) {
       //編輯
       blockData.value[editIndex.value] = { ...tempData.value };
@@ -140,15 +157,27 @@ async function handleClickOption(btn: btnType, data: any, index: number) {
     if (confirm) {
       try {
         // 向後端發刪除請求
-        await axios.delete('https://dahua.metcfire.com.tw/api/CRUDTest/%7bid%7d');
+        await axios.delete('https://dahua.metcfire.com.tw/api/CRUDTest/{id}');
         // 更新數據
-        blockData.value = blockData.value.filter(item => item.name !== data.name);
+        blockData.value.splice(index, 1);
       } catch (error) {
         console.log('錯誤', error);
       }
     }
   }
 }
+
+//查詢
+const filterBlockData = computed(() => {
+  if (!searchItem.value) {
+    return blockData.value;
+  }
+  else {
+    return blockData.value.filter(item => {
+      return Object.values(item).some(value => String(value).toLowerCase().includes(searchItem.value.toLowerCase()))
+    })
+  }
+})
 </script>
 
 <style lang="scss" scoped>
